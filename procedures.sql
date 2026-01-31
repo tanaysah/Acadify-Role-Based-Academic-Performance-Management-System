@@ -619,3 +619,128 @@ CREATE TRIGGER cgpa_update_log
 AFTER UPDATE ON students
 FOR EACH ROW
 EXECUTE FUNCTION log_cgpa_update();
+
+
+DO $$
+DECLARE
+    v_user_id_1 INTEGER;
+    v_user_id_2 INTEGER;
+    v_user_id_3 INTEGER;
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'sah_cse@hotmail.com') THEN
+        INSERT INTO users (email, password, role, created_at)
+        VALUES ('sah_cse@hotmail.com', ENCODE(DIGEST('Tanay@#9897602', 'sha256'), 'hex'), 'ADMIN', CURRENT_TIMESTAMP)
+        RETURNING user_id INTO v_user_id_1;
+
+        INSERT INTO admins (user_id, name)
+        VALUES (v_user_id_1, 'Tanay Sah');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'sahdevanshisah@gmail.com') THEN
+        INSERT INTO users (email, password, role, created_at)
+        VALUES ('sahdevanshisah@gmail.com', ENCODE(DIGEST('Devanshi@#9897602', 'sha256'), 'hex'), 'ADMIN', CURRENT_TIMESTAMP)
+        RETURNING user_id INTO v_user_id_2;
+
+        INSERT INTO admins (user_id, name)
+        VALUES (v_user_id_2, 'Devanshi Sah');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM users WHERE email = 'aditisheoran1050@gmail.com') THEN
+        INSERT INTO users (email, password, role, created_at)
+        VALUES ('aditisheoran1050@gmail.com', ENCODE(DIGEST('Aditi@#9897602', 'sha256'), 'hex'), 'ADMIN', CURRENT_TIMESTAMP)
+        RETURNING user_id INTO v_user_id_3;
+
+        INSERT INTO admins (user_id, name)
+        VALUES (v_user_id_3, 'Aditi Sheoran');
+    END IF;
+END $$;
+
+
+CREATE OR REPLACE PROCEDURE add_fixed_admin(
+    p_name VARCHAR,
+    p_email VARCHAR,
+    p_first_name VARCHAR
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_user_id INTEGER;
+    v_hashed_password VARCHAR;
+    v_password VARCHAR;
+BEGIN
+    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+        RAISE EXCEPTION 'ACADIFY_ERR: Admin with email "%" already exists.', p_email;
+    END IF;
+
+    IF (SELECT COUNT(*) FROM admins) >= 7 THEN
+        RAISE EXCEPTION 'ACADIFY_ERR: Maximum admin limit (7) reached. No further admins can be added.';
+    END IF;
+
+    v_password := p_first_name || '@#9897602';
+    v_hashed_password := ENCODE(DIGEST(v_password, 'sha256'), 'hex');
+
+    INSERT INTO users (email, password, role, created_at)
+    VALUES (p_email, v_hashed_password, 'ADMIN', CURRENT_TIMESTAMP)
+    RETURNING user_id INTO v_user_id;
+
+    INSERT INTO admins (user_id, name)
+    VALUES (v_user_id, p_name);
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION prevent_admin_name_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.name IS DISTINCT FROM NEW.name THEN
+        RAISE EXCEPTION 'ACADIFY_ERR: Admin name is immutable and cannot be modified.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER block_admin_name_update
+BEFORE UPDATE ON admins
+FOR EACH ROW
+EXECUTE FUNCTION prevent_admin_name_update();
+
+CREATE OR REPLACE FUNCTION prevent_admin_email_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.role = 'ADMIN' AND OLD.email IS DISTINCT FROM NEW.email THEN
+        RAISE EXCEPTION 'ACADIFY_ERR: Admin email is immutable and cannot be modified.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER block_admin_email_update
+BEFORE UPDATE ON users
+FOR EACH ROW
+EXECUTE FUNCTION prevent_admin_email_update();
+
+CREATE OR REPLACE FUNCTION prevent_admin_delete_from_admins()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'ACADIFY_ERR: Admin accounts cannot be deleted from the admins table.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER block_admin_delete_admins
+BEFORE DELETE ON admins
+FOR EACH ROW
+EXECUTE FUNCTION prevent_admin_delete_from_admins();
+
+CREATE OR REPLACE FUNCTION prevent_admin_delete_from_users()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.role = 'ADMIN' THEN
+        RAISE EXCEPTION 'ACADIFY_ERR: Admin accounts cannot be deleted from the users table.';
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER block_admin_delete_users
+BEFORE DELETE ON users
+FOR EACH ROW
+EXECUTE FUNCTION prevent_admin_delete_from_users();
