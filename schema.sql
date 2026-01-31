@@ -4,16 +4,17 @@ DROP TABLE IF EXISTS subjects CASCADE;
 DROP TABLE IF EXISTS admins CASCADE;
 DROP TABLE IF EXISTS teachers CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
+DROP TABLE IF EXISTS activity_logs CASCADE;
+DROP TABLE IF EXISTS password_resets CASCADE;
+DROP TABLE IF EXISTS academic_terms CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
-
 CREATE TABLE users (
     user_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
+    password VARCHAR(512) NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('STUDENT', 'TEACHER', 'ADMIN')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE students (
     student_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INTEGER NOT NULL UNIQUE,
@@ -24,7 +25,6 @@ CREATE TABLE students (
     cgpa DECIMAL(3, 2) CHECK (cgpa >= 0 AND cgpa <= 10),
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
 CREATE TABLE teachers (
     teacher_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INTEGER NOT NULL UNIQUE,
@@ -33,14 +33,12 @@ CREATE TABLE teachers (
     designation VARCHAR(100) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
 CREATE TABLE admins (
     admin_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INTEGER NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
 CREATE TABLE subjects (
     subject_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     subject_name VARCHAR(255) NOT NULL,
@@ -48,7 +46,6 @@ CREATE TABLE subjects (
     teacher_id INTEGER,
     FOREIGN KEY (teacher_id) REFERENCES teachers(teacher_id) ON DELETE SET NULL
 );
-
 CREATE TABLE marks (
     mark_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     student_id INTEGER NOT NULL,
@@ -59,7 +56,6 @@ CREATE TABLE marks (
     FOREIGN KEY (subject_id) REFERENCES subjects(subject_id) ON DELETE CASCADE,
     UNIQUE (student_id, subject_id, semester)
 );
-
 CREATE TABLE doubts (
     doubt_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     student_id INTEGER NOT NULL,
@@ -71,20 +67,6 @@ CREATE TABLE doubts (
     FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
     FOREIGN KEY (teacher_id) REFERENCES teachers(teacher_id) ON DELETE SET NULL
 );
-
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_students_roll ON students(roll_number);
-CREATE INDEX idx_students_stream ON students(stream);
-CREATE INDEX idx_marks_student ON marks(student_id);
-CREATE INDEX idx_marks_subject ON marks(subject_id);
-CREATE INDEX idx_marks_semester ON marks(semester);
-CREATE INDEX idx_subjects_semester ON subjects(semester);
-CREATE INDEX idx_doubts_student ON doubts(student_id);
-CREATE INDEX idx_doubts_teacher ON doubts(teacher_id);
-CREATE INDEX idx_doubts_status ON doubts(status);
-
-
 CREATE TABLE activity_logs (
     log_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INTEGER NOT NULL,
@@ -94,7 +76,6 @@ CREATE TABLE activity_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
 CREATE TABLE password_resets (
     reset_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     user_id INTEGER NOT NULL,
@@ -103,7 +84,6 @@ CREATE TABLE password_resets (
     used_flag BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
-
 CREATE TABLE academic_terms (
     term_id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     academic_year VARCHAR(20) NOT NULL,
@@ -111,8 +91,28 @@ CREATE TABLE academic_terms (
     is_active BOOLEAN DEFAULT FALSE,
     UNIQUE (academic_year, semester)
 );
-
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_students_user_id ON students(user_id);
+CREATE INDEX idx_students_roll ON students(roll_number);
+CREATE INDEX idx_students_stream ON students(stream);
+CREATE INDEX idx_teachers_user_id ON teachers(user_id);
+CREATE INDEX idx_teachers_department ON teachers(department);
+CREATE INDEX idx_admins_user_id ON admins(user_id);
+CREATE INDEX idx_marks_student ON marks(student_id);
+CREATE INDEX idx_marks_subject ON marks(subject_id);
+CREATE INDEX idx_marks_semester ON marks(semester);
+CREATE INDEX idx_marks_student_semester ON marks(student_id, semester);
+CREATE INDEX idx_subjects_semester ON subjects(semester);
+CREATE INDEX idx_subjects_teacher ON subjects(teacher_id);
+CREATE INDEX idx_doubts_student ON doubts(student_id);
+CREATE INDEX idx_doubts_teacher ON doubts(teacher_id);
+CREATE INDEX idx_doubts_status ON doubts(status);
+CREATE INDEX idx_doubts_created ON doubts(created_at);
 CREATE INDEX idx_activity_logs_user ON activity_logs(user_id);
 CREATE INDEX idx_activity_logs_created ON activity_logs(created_at);
+CREATE INDEX idx_activity_logs_action ON activity_logs(action);
 CREATE INDEX idx_password_resets_token ON password_resets(reset_token);
+CREATE INDEX idx_password_resets_user ON password_resets(user_id);
+CREATE INDEX idx_password_resets_expires ON password_resets(expires_at);
 CREATE INDEX idx_academic_terms_active ON academic_terms(is_active);
