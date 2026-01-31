@@ -1,6 +1,3 @@
--- Acadify PL/SQL Procedures and Functions
-
--- 1. Fetch top performing students by marks
 CREATE OR REPLACE FUNCTION get_top_performers(
     p_subject_id INTEGER DEFAULT NULL,
     p_semester INTEGER DEFAULT NULL,
@@ -34,7 +31,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 2. Fetch lowest performing students by marks
 CREATE OR REPLACE FUNCTION get_lowest_performers(
     p_subject_id INTEGER DEFAULT NULL,
     p_semester INTEGER DEFAULT NULL,
@@ -68,7 +64,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 3. Sort marks high to low
 CREATE OR REPLACE FUNCTION get_marks_high_to_low(
     p_subject_id INTEGER DEFAULT NULL,
     p_semester INTEGER DEFAULT NULL
@@ -100,7 +95,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 4. Sort marks low to high
 CREATE OR REPLACE FUNCTION get_marks_low_to_high(
     p_subject_id INTEGER DEFAULT NULL,
     p_semester INTEGER DEFAULT NULL
@@ -132,7 +126,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 5. Backlog detection procedure (passing marks < 40)
 CREATE OR REPLACE FUNCTION detect_backlogs(
     p_semester INTEGER DEFAULT NULL,
     p_passing_marks DECIMAL DEFAULT 40.0
@@ -166,7 +159,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 6. Calculate CGPA for a student
 CREATE OR REPLACE FUNCTION calculate_cgpa(p_student_id INTEGER)
 RETURNS DECIMAL AS $$
 DECLARE
@@ -180,7 +172,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 7. Update student CGPA
 CREATE OR REPLACE PROCEDURE update_student_cgpa(p_student_id INTEGER)
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -194,7 +185,6 @@ BEGIN
 END;
 $$;
 
--- 8. Fetch semester-wise performance for a student
 CREATE OR REPLACE FUNCTION get_semester_performance(p_student_id INTEGER)
 RETURNS TABLE (
     semester INTEGER,
@@ -218,7 +208,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 9. Fetch subject-wise marks trend for a student
 CREATE OR REPLACE FUNCTION get_subject_marks_trend(p_student_id INTEGER)
 RETURNS TABLE (
     subject_id INTEGER,
@@ -240,7 +229,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 10. Identify weak subjects for a student (marks < 50)
 CREATE OR REPLACE FUNCTION get_weak_subjects(
     p_student_id INTEGER,
     p_threshold DECIMAL DEFAULT 50.0
@@ -276,7 +264,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 11. Get overall class performance by subject
 CREATE OR REPLACE FUNCTION get_class_performance_by_subject(
     p_subject_id INTEGER,
     p_semester INTEGER DEFAULT NULL
@@ -314,7 +301,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 12. Get student complete performance report
 CREATE OR REPLACE FUNCTION get_student_performance_report(p_student_id INTEGER)
 RETURNS TABLE (
     student_id INTEGER,
@@ -346,7 +332,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 13. Trigger to auto-update CGPA when marks are inserted or updated
 CREATE OR REPLACE FUNCTION update_cgpa_trigger()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -360,7 +345,6 @@ AFTER INSERT OR UPDATE OR DELETE ON marks
 FOR EACH ROW
 EXECUTE FUNCTION update_cgpa_trigger();
 
--- 14. Get stream-wise performance comparison
 CREATE OR REPLACE FUNCTION get_stream_performance()
 RETURNS TABLE (
     stream VARCHAR,
@@ -383,7 +367,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 15. Get pending doubts for a teacher
 CREATE OR REPLACE FUNCTION get_pending_doubts_by_teacher(p_teacher_id INTEGER)
 RETURNS TABLE (
     doubt_id INTEGER,
@@ -409,11 +392,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- =====================================================
--- ADDITIONAL PROCEDURES
--- =====================================================
 
--- 16. Activity logging procedure
 CREATE OR REPLACE PROCEDURE log_activity(
     p_user_id INTEGER,
     p_action VARCHAR,
@@ -427,7 +406,6 @@ BEGIN
 END;
 $$;
 
--- 17. Performance risk scoring function
 CREATE OR REPLACE FUNCTION calculate_risk_score(p_student_id INTEGER)
 RETURNS DECIMAL AS $$
 DECLARE
@@ -467,7 +445,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 18. Get high-risk students
 CREATE OR REPLACE FUNCTION get_high_risk_students(p_threshold DECIMAL DEFAULT 50.0)
 RETURNS TABLE (
     student_id INTEGER,
@@ -497,7 +474,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 19. Get user activity history
 CREATE OR REPLACE FUNCTION get_user_activity(
     p_user_id INTEGER,
     p_limit INTEGER DEFAULT 50
@@ -524,7 +500,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 20. Get active academic term
 CREATE OR REPLACE FUNCTION get_active_term()
 RETURNS TABLE (
     term_id INTEGER,
@@ -543,7 +518,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 21. Set active academic term
 CREATE OR REPLACE PROCEDURE set_active_term(p_term_id INTEGER)
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -557,11 +531,7 @@ BEGIN
 END;
 $$;
 
--- =====================================================
--- ADDITIONAL TRIGGERS
--- =====================================================
 
--- Trigger function for logging marks activities
 CREATE OR REPLACE FUNCTION log_marks_activity()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -592,7 +562,6 @@ AFTER INSERT OR UPDATE OR DELETE ON marks
 FOR EACH ROW
 EXECUTE FUNCTION log_marks_activity();
 
--- Trigger function for logging doubt activities
 CREATE OR REPLACE FUNCTION log_doubt_activity()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -629,7 +598,6 @@ AFTER INSERT OR UPDATE ON doubts
 FOR EACH ROW
 EXECUTE FUNCTION log_doubt_activity();
 
--- Trigger function for logging CGPA updates
 CREATE OR REPLACE FUNCTION log_cgpa_update()
 RETURNS TRIGGER AS $$
 DECLARE
