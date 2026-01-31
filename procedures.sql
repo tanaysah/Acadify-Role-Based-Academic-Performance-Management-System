@@ -1,3 +1,73 @@
+CREATE OR REPLACE PROCEDURE log_activity(
+    p_user_id INTEGER,
+    p_action VARCHAR(255),
+    p_entity_type VARCHAR(100),
+    p_entity_id INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_user_id IS NULL OR p_user_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid user_id: %', p_user_id;
+    END IF;
+    IF p_action IS NULL OR LENGTH(TRIM(p_action)) = 0 THEN
+        RAISE EXCEPTION 'Action cannot be empty';
+    END IF;
+    IF p_entity_type IS NULL OR LENGTH(TRIM(p_entity_type)) = 0 THEN
+        RAISE EXCEPTION 'Entity type cannot be empty';
+    END IF;
+    INSERT INTO activity_logs (user_id, action, entity_type, entity_id)
+    VALUES (p_user_id, p_action, p_entity_type, p_entity_id);
+EXCEPTION
+    WHEN foreign_key_violation THEN
+        RAISE EXCEPTION 'User ID % does not exist', p_user_id;
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Failed to log activity: %', SQLERRM;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_student_performance_report(p_student_id INTEGER)
+RETURNS TABLE(
+    student_id INTEGER,
+    student_name VARCHAR,
+    roll_number VARCHAR,
+    stream VARCHAR,
+    current_cgpa DECIMAL,
+    total_subjects BIGINT,
+    overall_average DECIMAL,
+    total_backlogs BIGINT,
+    semesters_completed BIGINT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_student_id IS NULL OR p_student_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid student_id: %', p_student_id;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM students WHERE students.student_id = p_student_id) THEN
+        RAISE EXCEPTION 'Student with ID % not found', p_student_id;
+    END IF;
+    RETURN QUERY
+    SELECT
+        s.student_id,
+        s.name AS student_name,
+        s.roll_number,
+        s.stream,
+        s.cgpa AS current_cgpa,
+        COUNT(DISTINCT m.subject_id) AS total_subjects,
+        COALESCE(AVG(m.marks_obtained), 0)::DECIMAL(5,2) AS overall_average,
+        COUNT(*) FILTER (WHERE m.marks_obtained < 40) AS total_backlogs,
+        COUNT(DISTINCT m.semester) AS semesters_completed
+    FROM students s
+    LEFT JOIN marks m ON s.student_id = m.student_id
+    WHERE s.student_id = p_student_id
+    GROUP BY s.student_id, s.name, s.roll_number, s.stream, s.cgpa;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error generating performance report: %', SQLERRM;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION get_top_performers(
     p_subject_id INTEGER DEFAULT NULL,
     p_semester INTEGER DEFAULT NULL,
@@ -194,6 +264,9 @@ RETURNS TABLE (
     backlogs INTEGER
 ) AS $$
 BEGIN
+    IF p_student_id IS NULL OR p_student_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid student_id: %', p_student_id;
+    END IF;
     RETURN QUERY
     SELECT 
         m.semester,
@@ -205,6 +278,9 @@ BEGIN
     WHERE m.student_id = p_student_id
     GROUP BY m.semester
     ORDER BY m.semester;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving semester performance: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -216,6 +292,9 @@ RETURNS TABLE (
     marks_obtained DECIMAL
 ) AS $$
 BEGIN
+    IF p_student_id IS NULL OR p_student_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid student_id: %', p_student_id;
+    END IF;
     RETURN QUERY
     SELECT 
         sub.subject_id,
@@ -226,6 +305,9 @@ BEGIN
     INNER JOIN subjects sub ON m.subject_id = sub.subject_id
     WHERE m.student_id = p_student_id
     ORDER BY sub.subject_name, m.semester;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving marks trend: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -242,6 +324,12 @@ RETURNS TABLE (
     latest_marks DECIMAL
 ) AS $$
 BEGIN
+    IF p_student_id IS NULL OR p_student_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid student_id: %', p_student_id;
+    END IF;
+    IF p_threshold IS NULL OR p_threshold < 0 OR p_threshold > 100 THEN
+        RAISE EXCEPTION 'Threshold must be between 0 and 100';
+    END IF;
     RETURN QUERY
     SELECT 
         sub.subject_id,
@@ -261,6 +349,9 @@ BEGIN
     GROUP BY sub.subject_id, sub.subject_name
     HAVING AVG(m.marks_obtained) < p_threshold
     ORDER BY average_marks ASC;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving weak subjects: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -486,6 +577,9 @@ RETURNS TABLE (
     created_at TIMESTAMP
 ) AS $$
 BEGIN
+    IF p_user_id IS NULL OR p_user_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid user_id: %', p_user_id;
+    END IF;
     RETURN QUERY
     SELECT 
         al.log_id,
@@ -497,6 +591,9 @@ BEGIN
     WHERE al.user_id = p_user_id
     ORDER BY al.created_at DESC
     LIMIT p_limit;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving user activity: %', SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -620,6 +717,40 @@ AFTER UPDATE ON students
 FOR EACH ROW
 EXECUTE FUNCTION log_cgpa_update();
 
+
+CREATE OR REPLACE FUNCTION get_teacher_students(p_teacher_id INTEGER)
+RETURNS TABLE(
+    student_id INTEGER,
+    student_name VARCHAR,
+    roll_number VARCHAR,
+    stream VARCHAR,
+    subject_name VARCHAR,
+    semester INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_teacher_id IS NULL OR p_teacher_id <= 0 THEN
+        RAISE EXCEPTION 'Invalid teacher_id: %', p_teacher_id;
+    END IF;
+    RETURN QUERY
+    SELECT DISTINCT
+        s.student_id,
+        s.name AS student_name,
+        s.roll_number,
+        s.stream,
+        sub.subject_name,
+        m.semester
+    FROM students s
+    JOIN marks m ON s.student_id = m.student_id
+    JOIN subjects sub ON m.subject_id = sub.subject_id
+    WHERE sub.teacher_id = p_teacher_id
+    ORDER BY s.name;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE EXCEPTION 'Error retrieving teacher students: %', SQLERRM;
+END;
+$$;
 
 DO $$
 DECLARE
