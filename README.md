@@ -1,5 +1,11 @@
 Acadify is a role-based academic performance management web application for institutions. HTML, CSS, JavaScript, Java, SQL, and Python.
+
+
+
 ACADIFY (Academic Management System)
+
+
+
 │
 ├── DATABASE (Data Layer)
 │   │
