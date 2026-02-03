@@ -1,4 +1,4 @@
-# 🎓 acadify - Academic Intelligence Platform
+# 🎓 Acadify - Academic Intelligence Platform
 
 **Frontend Application** - Premium, Modern, Production-Ready
 
